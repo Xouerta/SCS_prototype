@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+redis
+pymongo
+scikit-learn
+pandas
+joblib
+numpy
+# 后面用到什么就加什么

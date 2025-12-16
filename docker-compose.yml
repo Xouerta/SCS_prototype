@@ -1,0 +1,101 @@
+version: '3.8'
+
+services:
+  # =========================================
+  # 1. Redis (消息队列 & 缓存)
+  # =========================================
+  redis:
+    image: redis:alpine
+    container_name: security_redis
+    ports:
+      - "6379:6379"
+    networks:
+      - security_net
+
+  # =========================================
+  # 2. MongoDB (日志与用户数据库)
+  # =========================================
+  mongo:
+    image: mongo:latest
+    container_name: security_mongo
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db  # 数据持久化，重启不丢失
+    networks:
+      - security_net
+
+  # =========================================
+  # 3. Mongo Express (数据库可视化管理 - 可选)
+  # 方便你在浏览器直接看数据库，毕设演示调试神器
+  # 访问地址: http://localhost:8081
+  # =========================================
+  mongo-express:
+    image: mongo-express
+    container_name: security_mongo_ui
+    restart: always
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_SERVER: mongo
+    depends_on:
+      - mongo
+    networks:
+      - security_net
+
+  # =========================================
+  # 4. Node.js 网关 (业务后端)
+  # =========================================
+  backend-gateway:
+    build: ./backend-gateway
+    container_name: security_gateway
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - MONGO_URI=mongodb://mongo:27017/security_db
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    volumes:
+      - ./backend-gateway:/app  # [关键] 本地代码映射到容器
+      - /app/node_modules       # 避免覆盖容器内的依赖
+    depends_on:
+      - mongo
+      - redis
+    command: npm run dev        # 使用 nodemon 启动，实现热更新
+    networks:
+      - security_net
+
+  # =========================================
+  # 5. Python AI 引擎 (计算后端)
+  # =========================================
+  backend-ai-engine:
+    build: ./backend-ai-engine
+    container_name: security_ai_engine
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - MONGO_URI=mongodb://mongo:27017/
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    volumes:
+      - ./backend-ai-engine:/app # [关键] 本地代码映射到容器
+    depends_on:
+      - redis
+      - mongo
+    # 使用 uvicorn 启动 FastAPI，--reload 实现代码修改自动重启
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - security_net
+
+# 网络定义
+networks:
+  security_net:
+    driver: bridge
+
+# 数据卷定义
+volumes:
+  mongo_data:
