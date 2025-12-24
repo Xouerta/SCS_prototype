@@ -3,12 +3,26 @@
 from fastapi import FastAPI
 import os
 import uvicorn
+import threading
+
+from app.workers.consumer import start_worker
 
 # ----------------------------------------------------
 # 1. FastAPI 启动配置
 # ----------------------------------------------------
 app = FastAPI(title="AI Threat Inference Engine", version="v1.0")
 
+# ----------------------------------------------------
+# worker 线程启动
+# ----------------------------------------------------
+app.on_event("startup")
+def startup_event()
+"""应用启动时启动worker"""
+print(">>>active ai threat engine")
+# daemon=ture 确保主程序退出时线程同时退出
+worker_thread = threading.Thread(target=start_worker,daemon=True)
+worker_thread.start()
+print(">>>worker线程启动")
 # ----------------------------------------------------
 # 2. 服务健康检查接口
 # ----------------------------------------------------
